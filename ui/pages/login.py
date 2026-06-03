@@ -12,7 +12,7 @@ def render() -> None:
             """
             <div style="text-align:center;margin-bottom:32px;">
                 <div style="font-size:3.5rem;line-height:1;">🧾</div>
-                <h1 style="font-size:2rem;font-weight:800;color:#1a2744;margin:8px 0 4px;">DocIntel</h1>
+                <h1 style="font-size:2rem;font-weight:800;color:#1a2744;margin:8px 0 4px;">Doc Agent</h1>
                 <p style="color:#6b7a99;font-size:.95rem;margin:0;">
                     Invoice &amp; Document Intelligence Platform
                 </p>

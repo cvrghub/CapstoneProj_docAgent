@@ -104,7 +104,7 @@ def render() -> None:
     with tab_about:
         st.markdown("#### System Information")
         info = {
-            "Application": "DocIntel — Multi-Modal Document Intelligence Agent",
+            "Application": "Doc Agent — Multi-Modal Document Intelligence Agent",
             "Version":     "0.1.0 (skeleton)",
             "Orchestration": "LangGraph",
             "VLM Backend": "claude-sonnet-4-6",

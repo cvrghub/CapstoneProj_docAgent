@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="DocIntel — Invoice Intelligence",
+    page_title="Doc Agent — Invoice Intelligence",
     page_icon="🧾",
     layout="wide",
     initial_sidebar_state="expanded",

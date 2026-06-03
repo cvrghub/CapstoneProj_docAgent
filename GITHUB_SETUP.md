@@ -8,7 +8,7 @@ cd /Users/yogeshprasad.bhondek/SNOWVIBE/GAIPT/capstone
 
 git init
 git add .
-git commit -m "Initial commit — DocIntel skeleton"
+git commit -m "Initial commit — Doc Agent skeleton"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
 git push -u origin main

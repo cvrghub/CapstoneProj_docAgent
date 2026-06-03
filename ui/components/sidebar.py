@@ -16,7 +16,7 @@ def render_sidebar() -> str:
 
     with st.sidebar:
         st.markdown(
-            '<div class="sidebar-logo">🧾 DocIntel</div>'
+            '<div class="sidebar-logo">🧾 Doc Agent</div>'
             '<div class="sidebar-user">Invoice Intelligence Platform</div>',
             unsafe_allow_html=True,
         )
