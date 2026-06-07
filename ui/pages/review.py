@@ -11,6 +11,7 @@ import streamlit as st
 sys.path.insert(0, os.getcwd())
 
 from ui.styles import badge, page_header
+from ui.components.latency_panel import render as render_latency
 
 
 def _load_pending() -> list[dict]:
@@ -94,8 +95,12 @@ def render() -> None:
                 )
                 st.markdown(f"- **Reason flagged:** {reason}")
                 st.markdown("**Processing log:**")
-                for note in notes[-4:]:
+                for note in notes[-5:]:
                     st.caption(f"• {note}")
+
+                st.markdown("<br/>", unsafe_allow_html=True)
+                timings = json.loads(doc.get("final_data") or "{}").get("timings")
+                render_latency(notes, timings_dict=timings)
 
                 st.markdown("<br/>", unsafe_allow_html=True)
                 col_a, col_r = st.columns(2)

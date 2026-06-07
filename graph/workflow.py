@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Optional, TypedDict
 
@@ -27,41 +28,61 @@ class InvoiceState(TypedDict):
     correction_attempts:  int
     final_status:         Optional[ValidationStatus]
     processing_notes:     list
+    timings:              dict      # {node_name: seconds}
+    pipeline_start:       float    # epoch time when pipeline started
+
+
+# ── Timing helper ─────────────────────────────────────────────────────────────
+
+def _timed(state: InvoiceState, node: str, start: float) -> float:
+    """Record elapsed time for a node and return it."""
+    elapsed = round(time.time() - start, 2)
+    state["timings"][node] = elapsed
+    return elapsed
 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
 
 def node_ingest(state: InvoiceState) -> InvoiceState:
+    t0     = time.time()
     images = ingestion.load_document(state["source_path"])
     state["images"] = images
-    state["processing_notes"].append(f"Ingested {len(images)} page(s)")
-    storage.log_event(state["document_id"], "ingested", {"pages": len(images)})
+    elapsed = _timed(state, "ingest", t0)
+    state["processing_notes"].append(
+        f"📥 Ingested {len(images)} page(s) · ⏱ {elapsed}s"
+    )
+    storage.log_event(state["document_id"], "ingested",
+                      {"pages": len(images), "latency_s": elapsed})
     return state
 
 
 def node_extract(state: InvoiceState) -> InvoiceState:
     """Combined classify + extract — one VLM call identifies type and reads all fields."""
+    t0           = time.time()
     combined_ocr = "\n\n".join(state.get("ocr_texts") or [])
     result       = extraction_agent.run(state["images"][0], combined_ocr)
     state["extraction"] = result
+    elapsed = _timed(state, "extract", t0)
 
     doc = result.extracted_data
+    sub = f" · subtype: {doc.doc_subtype}" if doc.doc_subtype else ""
     state["processing_notes"].append(
-        f"Classified as '{doc.doc_type}' "
-        f"({'+ subtype: ' + doc.doc_subtype if doc.doc_subtype else ''}) "
-        f"· {len(doc.fields)} fields extracted "
-        f"· confidence {result.confidence:.0%}"
+        f"🔍 Classified as '{doc.doc_type}'{sub} · "
+        f"{len(doc.fields)} fields extracted · "
+        f"confidence {result.confidence:.0%} · ⏱ {elapsed}s"
     )
     storage.log_event(state["document_id"], "extracted", {
-        "doc_type":   doc.doc_type,
+        "doc_type":    doc.doc_type,
         "field_count": len(doc.fields),
-        "confidence": result.confidence,
+        "confidence":  result.confidence,
+        "latency_s":   elapsed,
     })
     return state
 
 
 def node_ocr_fallback(state: InvoiceState) -> InvoiceState:
     """Run Tesseract and merge output to fill gaps from VLM extraction."""
+    t0       = time.time()
     texts    = [ocr.ocr_extract_text(img) for img in state["images"]]
     combined = "\n\n".join(texts)
     state["ocr_texts"] = texts
@@ -75,81 +96,100 @@ def node_ocr_fallback(state: InvoiceState) -> InvoiceState:
             vlm_response=state["extraction"].vlm_response,
             ocr_used=True,
         )
-    state["processing_notes"].append("OCR fallback ran — merged with VLM output")
-    storage.log_event(state["document_id"], "ocr_fallback", {"chars": len(combined)})
+    elapsed = _timed(state, "ocr_fallback", t0)
+    state["processing_notes"].append(
+        f"📄 OCR fallback ran — merged with VLM output · ⏱ {elapsed}s"
+    )
+    storage.log_event(state["document_id"], "ocr_fallback",
+                      {"chars": len(combined), "latency_s": elapsed})
     return state
 
 
 def node_validate(state: InvoiceState) -> InvoiceState:
+    t0     = time.time()
     result = validation_agent.run(state["extraction"])
     state["validation"] = result
+    elapsed = _timed(state, "validate", t0)
+
     msg = "Validation passed" if result.is_valid else f"Validation failed: {result.failed_fields}"
-    state["processing_notes"].append(msg)
+    state["processing_notes"].append(f"✅ {msg} · ⏱ {elapsed}s")
     storage.log_event(state["document_id"], "validated", {
-        "valid": result.is_valid,
-        "failed": result.failed_fields,
+        "valid":      result.is_valid,
+        "failed":     result.failed_fields,
+        "latency_s":  elapsed,
     })
     return state
 
 
 def node_correct(state: InvoiceState) -> InvoiceState:
+    t0 = time.time()
     state["correction_attempts"] += 1
     updated = correction_agent.run(state["images"][0], state["extraction"], state["validation"])
     state["extraction"] = updated
-    state["processing_notes"].append(f"Auto-correction attempt {state['correction_attempts']}")
-    storage.log_event(state["document_id"], "corrected", {"attempt": state["correction_attempts"]})
+    elapsed = _timed(state, f"correct_{state['correction_attempts']}", t0)
+    state["processing_notes"].append(
+        f"🔄 Auto-correction attempt {state['correction_attempts']} · ⏱ {elapsed}s"
+    )
+    storage.log_event(state["document_id"], "corrected",
+                      {"attempt": state["correction_attempts"], "latency_s": elapsed})
     return state
+
+
+def _save(state: InvoiceState, status: ValidationStatus) -> None:
+    """Shared save logic for store and review_queue nodes."""
+    v   = state["validation"]
+    ext = state["extraction"]
+
+    # Total pipeline time
+    total = round(time.time() - state["pipeline_start"], 2)
+    state["timings"]["total"] = total
+    state["processing_notes"].append(f"⏱ Total pipeline time: {total}s")
+
+    storage.save_record(ProcessingRecord(
+        document_id=state["document_id"],
+        source_path=state["source_path"],
+        doc_type=ext.extracted_data.doc_type if ext else "unknown",
+        raw_ocr_text="\n\n".join(state.get("ocr_texts") or []),
+        vlm_extraction={
+            "fields":     ext.extracted_data.fields,
+            "line_items": ext.extracted_data.line_items,
+            "timings":    state["timings"],
+        } if ext else {},
+        corrections_applied=[
+            fv.model_dump() for fv in (v.field_validations if v else [])
+            if fv.status == ValidationStatus.CORRECTED
+        ],
+        final_data={
+            "doc_type":         ext.extracted_data.doc_type,
+            "doc_subtype":      ext.extracted_data.doc_subtype,
+            "fields":           ext.extracted_data.fields,
+            "line_items":       ext.extracted_data.line_items,
+            "extraction_notes": ext.extracted_data.extraction_notes,
+            "timings":          state["timings"],
+        } if ext else {},
+        validation_status=status,
+        extraction_confidence=ext.confidence if ext else 0.0,
+        processing_notes=state["processing_notes"],
+    ))
 
 
 def node_store(state: InvoiceState) -> InvoiceState:
     v      = state["validation"]
     status = ValidationStatus.VALID if (v and v.is_valid) else ValidationStatus.CORRECTED
     state["final_status"] = status
-
-    ext = state["extraction"]
-    storage.save_record(ProcessingRecord(
-        document_id=state["document_id"],
-        source_path=state["source_path"],
-        doc_type=ext.extracted_data.doc_type if ext else "unknown",
-        raw_ocr_text="\n\n".join(state.get("ocr_texts") or []),
-        vlm_extraction={"fields": ext.extracted_data.fields,
-                        "line_items": ext.extracted_data.line_items} if ext else {},
-        corrections_applied=[fv.model_dump() for fv in (v.field_validations if v else [])
-                             if fv.status == ValidationStatus.CORRECTED],
-        final_data={"doc_type": ext.extracted_data.doc_type,
-                    "doc_subtype": ext.extracted_data.doc_subtype,
-                    "fields": ext.extracted_data.fields,
-                    "line_items": ext.extracted_data.line_items,
-                    "extraction_notes": ext.extracted_data.extraction_notes} if ext else {},
-        validation_status=status,
-        extraction_confidence=ext.confidence if ext else 0.0,
-        processing_notes=state["processing_notes"],
-    ))
-    storage.log_event(state["document_id"], "stored", {"status": status.value})
+    _save(state, status)
+    storage.log_event(state["document_id"], "stored",
+                      {"status": status.value, "total_s": state["timings"].get("total")})
     return state
 
 
 def node_review_queue(state: InvoiceState) -> InvoiceState:
     state["final_status"] = ValidationStatus.PENDING
-    ext  = state["extraction"]
-    notes = state["processing_notes"] + ["Sent to human review queue"]
-
-    storage.save_record(ProcessingRecord(
-        document_id=state["document_id"],
-        source_path=state["source_path"],
-        doc_type=ext.extracted_data.doc_type if ext else "unknown",
-        raw_ocr_text="\n\n".join(state.get("ocr_texts") or []),
-        vlm_extraction={"fields": ext.extracted_data.fields,
-                        "line_items": ext.extracted_data.line_items} if ext else {},
-        corrections_applied=[],
-        final_data={"doc_type": ext.extracted_data.doc_type,
-                    "fields": ext.extracted_data.fields,
-                    "line_items": ext.extracted_data.line_items} if ext else {},
-        validation_status=ValidationStatus.PENDING,
-        extraction_confidence=ext.confidence if ext else 0.0,
-        processing_notes=notes,
-    ))
-    storage.log_event(state["document_id"], "review_queue", {"reason": "low confidence or max corrections"})
+    state["processing_notes"].append("Sent to human review queue")
+    _save(state, ValidationStatus.PENDING)
+    storage.log_event(state["document_id"], "review_queue",
+                      {"reason": "low confidence or max corrections",
+                       "total_s": state["timings"].get("total")})
     return state
 
 
@@ -192,7 +232,8 @@ def build_graph():
                              {"ocr_fallback": "ocr_fallback", "validate": "validate"})
     g.add_edge("ocr_fallback", "validate")
     g.add_conditional_edges("validate", _route_after_validation,
-                             {"correct": "correct", "store": "store", "review_queue": "review_queue"})
+                             {"correct": "correct", "store": "store",
+                              "review_queue": "review_queue"})
     g.add_edge("correct",      "validate")
     g.add_edge("store",        END)
     g.add_edge("review_queue", END)
@@ -211,25 +252,18 @@ def _initial_state(path: str) -> InvoiceState:
         "correction_attempts": 0,
         "final_status":        None,
         "processing_notes":    [],
+        "timings":             {},
+        "pipeline_start":      time.time(),
     }
 
 
 def process_document(path: str) -> InvoiceState:
-    """Run the full pipeline and return the final state (blocking)."""
     return build_graph().invoke(_initial_state(path))
 
 
 def process_document_stream(path: str):
-    """Stream pipeline events in real time.
-
-    Yields (node_name: str, state: InvoiceState) after each node completes.
-    Use this for progressive UI updates.
-    """
+    """Yield (node_name, state) after each node completes."""
     graph = build_graph()
-    final_state: InvoiceState = _initial_state(path)
-
-    for chunk in graph.stream(final_state):
-        # chunk = {node_name: updated_state_dict}
+    for chunk in graph.stream(_initial_state(path)):
         node_name   = list(chunk.keys())[0]
-        final_state = chunk[node_name]
-        yield node_name, final_state
+        yield node_name, chunk[node_name]

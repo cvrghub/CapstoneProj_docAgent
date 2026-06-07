@@ -12,6 +12,7 @@ import streamlit as st
 sys.path.insert(0, os.getcwd())
 
 from ui.styles import badge, page_header
+from ui.components.latency_panel import render as render_latency
 
 
 def _load_records() -> list[dict]:
@@ -139,8 +140,9 @@ def render() -> None:
     col_type.metric("Type",         (record.get("doc_type") or "invoice").title())
     col_date.metric("Processed",    (record.get("created_at") or "")[:10])
 
-    tab_fields, tab_items, tab_ocr, tab_audit, tab_export = st.tabs([
-        "📋 Extracted Fields", "🗒️ Line Items", "📄 Raw OCR", "🔍 Audit Trail", "⬇️ Export"
+    tab_fields, tab_items, tab_ocr, tab_latency, tab_audit, tab_export = st.tabs([
+        "📋 Extracted Fields", "🗒️ Line Items", "📄 Raw OCR",
+        "⏱ Latency", "🔍 Audit Trail", "⬇️ Export"
     ])
 
     with tab_fields:
@@ -182,6 +184,10 @@ def render() -> None:
                          key=f"ocr_{record['document_id']}")
         else:
             st.info("OCR was not used for this document (high confidence extraction).")
+
+    with tab_latency:
+        timings = final.get("timings") or {}
+        render_latency(notes, timings_dict={k: v for k, v in timings.items() if k != "total"})
 
     with tab_audit:
         try:
