@@ -222,10 +222,46 @@ hr {border-color: #e2e8f0 !important;}
     transform:        none                      !important;   /* disable lift effect in sidebar */
 }
 
-/* Sidebar collapse/expand arrow — keep it visible */
-[data-testid="collapsedControl"],
+/* ── Sidebar collapse / expand toggle buttons ────────────────────────────── */
+
+/* ▶  Expand button — shown on the LEFT EDGE when sidebar is collapsed.
+      Lives outside the sidebar, on the light main background. */
+[data-testid="collapsedControl"]                  {
+    display:    block !important;
+    visibility: visible !important;
+    opacity:    1 !important;
+    position:   fixed !important;
+    top:        1rem !important;
+    left:       0.4rem !important;
+    z-index:    9999 !important;
+}
+[data-testid="collapsedControl"] button,
+[data-testid="collapsedControl"] svg {
+    color:      #1a2744   !important;
+    background: #ffffff   !important;
+    border:     1.5px solid #c7d2e7 !important;
+    border-radius: 8px   !important;
+    box-shadow: 0 2px 8px rgba(26,39,68,.15) !important;
+    opacity:    1        !important;
+    visibility: visible  !important;
+    width:      32px     !important;
+    height:     32px     !important;
+    padding:    4px      !important;
+}
+
+/* ◀  Collapse button — shown INSIDE the sidebar header (dark background). */
+[data-testid="stSidebarCollapseButton"] button,
 button[data-testid="baseButton-headerNoPadding"] {
-    color: #1a2744 !important;
+    color:      #e8edf5               !important;
+    background: rgba(255,255,255,.12) !important;
+    border:     1px solid rgba(255,255,255,.25) !important;
+    border-radius: 6px               !important;
+    opacity:    1                    !important;
+    visibility: visible              !important;
+}
+[data-testid="stSidebarCollapseButton"] button:hover,
+button[data-testid="baseButton-headerNoPadding"]:hover {
+    background: rgba(255,255,255,.25) !important;
 }
 
 /* ════════════════════════════════════════════════════════════

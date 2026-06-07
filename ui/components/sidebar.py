@@ -121,4 +121,11 @@ def render_sidebar() -> str:
             logout()
             st.rerun()
 
+        # ── Collapse hint ──────────────────────────────────────────────────────
+        st.markdown(
+            f"<div style='color:{_TEXT_DIM};font-size:.65rem;text-align:center;"
+            f"margin-top:12px;'>Press [ to collapse · ] to expand</div>",
+            unsafe_allow_html=True,
+        )
+
     return st.session_state.current_page
