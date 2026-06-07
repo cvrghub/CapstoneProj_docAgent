@@ -56,29 +56,6 @@ def render_sidebar() -> str:
     if "current_page" not in st.session_state:
         st.session_state.current_page = "Dashboard"
 
-    # Auto-expand if browser session left sidebar collapsed
-    st.markdown("""
-<script>
-(function expandSidebar() {
-    function tryExpand() {
-        // Click the expand button if sidebar is in collapsed state
-        var btn = document.querySelector(
-            '[data-testid="stSidebarCollapsedControl"] button, ' +
-            '[data-testid="collapsedControl"] button'
-        );
-        if (btn) { btn.click(); return true; }
-        return false;
-    }
-    // Try immediately and after short delays for Streamlit hydration
-    if (!tryExpand()) {
-        setTimeout(tryExpand, 300);
-        setTimeout(tryExpand, 800);
-        setTimeout(tryExpand, 1500);
-    }
-})();
-</script>
-""", unsafe_allow_html=True)
-
     with st.sidebar:
         # ── Logo ──────────────────────────────────────────────────────────────
         st.markdown(
@@ -144,11 +121,5 @@ def render_sidebar() -> str:
             logout()
             st.rerun()
 
-        # ── Collapse hint ──────────────────────────────────────────────────────
-        st.markdown(
-            f"<div style='color:{_TEXT_DIM};font-size:.65rem;text-align:center;"
-            f"margin-top:12px;'>Press [ to collapse · ] to expand</div>",
-            unsafe_allow_html=True,
-        )
 
     return st.session_state.current_page

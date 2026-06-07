@@ -192,77 +192,57 @@ button[data-testid="baseButton-primary"]:hover {
 hr {border-color: #e2e8f0 !important;}
 
 /* ════════════════════════════════════════════════════════════
-   SIDEBAR — dark background set via config.toml (#1a2744)
-   CSS here just ensures text and buttons are always visible.
+   SIDEBAR — always visible, never collapsible
    ════════════════════════════════════════════════════════════ */
 
-/* Force all text inside sidebar to be light — belt AND braces */
+/* 1. Override any Streamlit JS that slides/hides the sidebar */
+[data-testid="stSidebar"] {
+    width:      260px   !important;
+    min-width:  260px   !important;
+    max-width:  260px   !important;
+    transform:  none    !important;   /* block translateX slide-out */
+    visibility: visible !important;
+    display:    flex    !important;
+    flex-shrink: 0      !important;
+    position:   relative !important;
+}
+
+/* 2. Hide collapse AND expand buttons — no toggle at all */
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapseButton"] button,
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] button,
+button[data-testid="baseButton-headerNoPadding"] {
+    display: none !important;
+}
+
+/* 3. Text colours */
 [data-testid="stSidebar"],
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] div,
 [data-testid="stSidebar"] label,
-[data-testid="stSidebar"] a      {color: #e8edf5 !important;}
+[data-testid="stSidebar"] a     {color: #e8edf5 !important;}
 
-/* Nav buttons — transparent background so dark sidebar shows through */
+/* 4. Nav buttons */
 [data-testid="stSidebar"] .stButton > button {
-    color:            #e8edf5                   !important;
-    background-color: rgba(255,255,255,0.07)    !important;
+    color:            #e8edf5                    !important;
+    background-color: rgba(255,255,255,0.07)     !important;
     border:           1px solid rgba(255,255,255,0.12) !important;
-    border-radius:    8px                       !important;
-    font-weight:      500                       !important;
-    text-align:       left                      !important;
-    padding:          8px 14px                  !important;
-    margin:           2px 0                     !important;
-    width:            100%                      !important;
+    border-radius:    8px                        !important;
+    font-weight:      500                        !important;
+    text-align:       left                       !important;
+    padding:          8px 14px                   !important;
+    margin:           2px 0                      !important;
+    width:            100%                       !important;
+    transform:        none                       !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background-color: rgba(255,255,255,0.15)    !important;
-    border-color:     rgba(255,255,255,0.3)     !important;
-    transform:        none                      !important;   /* disable lift effect in sidebar */
-}
-
-/* ── Sidebar: hide collapse button so it cannot be accidentally closed ───── */
-/* The sidebar is always visible. JavaScript in sidebar.py auto-expands it
-   if the browser remembers a collapsed state from a previous session.      */
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapseButton"] button,
-button[data-testid="baseButton-headerNoPadding"] {
-    display: none !important;
-}
-
-/* ▶  Expand button — shown when sidebar is already collapsed.
-      Style it as a clearly visible blue pill so users can recover.        */
-[data-testid="stSidebarCollapsedControl"],
-[data-testid="collapsedControl"] {
-    display:        flex    !important;
-    visibility:     visible !important;
-    opacity:        1       !important;
-    z-index:        99999   !important;
-    pointer-events: all     !important;
-}
-[data-testid="stSidebarCollapsedControl"] button,
-[data-testid="collapsedControl"] button {
-    display:          flex    !important;
-    align-items:      center  !important;
-    justify-content:  center  !important;
-    visibility:       visible !important;
-    opacity:          1       !important;
-    min-width:        44px    !important;
-    min-height:       44px    !important;
-    background-color: #2563eb !important;
-    color:            #ffffff !important;
-    border:           none    !important;
-    border-radius:    10px    !important;
-    box-shadow:       0 4px 16px rgba(37,99,235,.5) !important;
-    cursor:           pointer !important;
-}
-[data-testid="stSidebarCollapsedControl"] svg,
-[data-testid="collapsedControl"] svg {
-    fill:   #ffffff !important;
-    stroke: #ffffff !important;
-    width:  20px    !important;
-    height: 20px    !important;
+    background-color: rgba(255,255,255,0.15)     !important;
+    border-color:     rgba(255,255,255,0.3)      !important;
+    transform:        none                       !important;
 }
 
 /* ════════════════════════════════════════════════════════════
