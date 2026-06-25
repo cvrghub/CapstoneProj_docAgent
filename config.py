@@ -16,8 +16,12 @@ VLM_BACKEND = os.getenv("VLM_BACKEND", "gemini")
 # ── Google Gemini (Free Tier) ─────────────────────────────────────────────────
 # Get your free API key at: https://aistudio.google.com/app/apikey
 # No credit card required — just a Google account
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyC9CJBCY-5wjxsyg6ly5vTnUxBurQMEqNs")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+# ── OpenAI (Optional) ───────────────────────────────────────────────
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
+OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 # ── Anthropic Claude (Optional) ───────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
