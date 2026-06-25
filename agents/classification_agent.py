@@ -42,14 +42,29 @@ class ClassificationResult:
     def __repr__(self) -> str:
         return f"ClassificationResult(doc_type={self.doc_type!r}, confidence={self.confidence:.2f})"
 
+CLASSIFIERS = {
+    "gemini": _classify_with_gemini,
+    "claude": _classify_with_claude,
+    "openai": _classify_with_openai,
+}
 
 def run(image: Image.Image) -> ClassificationResult:
+    classifier = CLASSIFIERS.get(config.VLM_BACKEND)
+
+    if classifier is None:
+        raise ValueError(
+            f"Unsupported backend: {config.VLM_BACKEND}"
+        )
+
+    return classifier(image)
+
+"""def run(image: Image.Image) -> ClassificationResult:
     if config.VLM_BACKEND == "gemini":
         return _classify_with_gemini(image)
     elif config.VLM_BACKEND == "claude":
         return _classify_with_claude(image)
     return _fallback_classify()
-
+"""
 
 # ── Gemini (free, recommended) ────────────────────────────────────────────────
 
@@ -68,6 +83,50 @@ def _classify_with_gemini(image: Image.Image) -> ClassificationResult:
     )
     return _parse_response(response.text)
 
+# ── OpenAI (Optional, paid) ────────────────────────────────────────────────
+
+def _classify_with_openai(image: Image.Image) -> ClassificationResult:
+
+    import base64
+    import io
+    from openai import OpenAI
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+
+    image_b64 = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        temperature=0.1,
+        max_tokens=256,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": _CLASSIFICATION_PROMPT,
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url":
+                            f"data:image/png;base64,{image_b64}"
+                        },
+                    },
+                ],
+            }
+        ],
+    )
+
+    text = response.choices[0].message.content
+
+    return _parse_response(text)
 
 # ── Claude (optional, paid) ───────────────────────────────────────────────────
 
