@@ -53,6 +53,7 @@ def main() -> None:
         print(json.dumps(results, indent=2, default=str))
 
 
+
 def _pretty_print(result: dict) -> None:
     data = result["data"]
     print(f"\n{'='*60}")
